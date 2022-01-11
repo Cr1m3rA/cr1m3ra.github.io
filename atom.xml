@@ -6,7 +6,7 @@
   <link href="http://codea.ink/atom.xml" rel="self"/>
   
   <link href="http://codea.ink/"/>
-  <updated>2021-12-28T09:15:14.674Z</updated>
+  <updated>2022-01-11T08:10:36.427Z</updated>
   <id>http://codea.ink/</id>
   
   <author>
@@ -15,6 +15,19 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>AzureAD_Pentest</title>
+    <link href="http://codea.ink/2022/01/11/AzureAD-Pentest/"/>
+    <id>http://codea.ink/2022/01/11/AzureAD-Pentest/</id>
+    <published>2022-01-11T08:10:36.000Z</published>
+    <updated>2022-01-11T08:10:36.427Z</updated>
+    
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>20201213</title>
