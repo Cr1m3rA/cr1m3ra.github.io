@@ -6,7 +6,7 @@
   <link href="http://codea.ink/atom.xml" rel="self"/>
   
   <link href="http://codea.ink/"/>
-  <updated>2022-01-11T08:10:36.427Z</updated>
+  <updated>2022-01-11T06:45:53.096Z</updated>
   <id>http://codea.ink/</id>
   
   <author>
@@ -17,12 +17,19 @@
   <generator uri="https://hexo.io/">Hexo</generator>
   
   <entry>
-    <title>AzureAD_Pentest</title>
+    <title></title>
     <link href="http://codea.ink/2022/01/11/AzureAD-Pentest/"/>
     <id>http://codea.ink/2022/01/11/AzureAD-Pentest/</id>
-    <published>2022-01-11T08:10:36.000Z</published>
-    <updated>2022-01-11T08:10:36.427Z</updated>
+    <published>2022-01-11T08:25:08.630Z</published>
+    <updated>2022-01-11T06:45:53.096Z</updated>
     
+    <content type="html"><![CDATA[<h1 id="Azure-Active-Directory-Pentesting-Part-1"><a href="#Azure-Active-Directory-Pentesting-Part-1" class="headerlink" title="Azure Active Directory Pentesting - Part 1"></a>Azure Active Directory Pentesting - Part 1</h1><blockquote><p>Azure Active Directory (Azure AD) 是Microsoft基于Azure云的身份验证和访问管理服务，用户通过Azure AD可以连接本地Windows AD和Office 365,SharePoint,Teams等在线应用。</p></blockquote><p>​        这个系列将会介绍Azure AD以及对其的攻击思路，需要说明的是，对Azure AD的攻击并不会基于其本身的安全漏洞，而是针对Azure AD用户使用的安全策略和不安全的配置。</p><p>​        Part1主要介绍Azure AD的基本概念，术语和身份认证功能。</p><h2 id="0x00-Azure-AD-概述"><a href="#0x00-Azure-AD-概述" class="headerlink" title="0x00 Azure AD 概述"></a>0x00 Azure AD 概述</h2><p>​        根据Microsoft提供的官方文档<a href="https://docs.microsoft.com/en-gb/azure/active-directory/fundamentals/active-directory-whatis">https://docs.microsoft.com/en-gb/azure/active-directory/fundamentals/active-directory-whatis</a></p><blockquote><p>Azure Active Directory (Azure AD) is Microsoft’s cloud-based identity and access management service, which helps your employees sign in and access resources in:</p><ul><li>External resources, such as Microsoft 365, the Azure portal, and thousands of other SaaS applications.</li><li>Internal resources, such as apps on your corporate network and intranet, along with any cloud apps developed by your own organization. For more information about creating a tenant for your organization, see <a href="https://docs.microsoft.com/en-gb/azure/active-directory/fundamentals/active-directory-access-create-new-tenant">Quickstart: Create a new tenant in Azure Active Directory</a>.</li></ul></blockquote><p>​        尽管Azure AD的名字很具有误导性,但是不能简单地把它理解为运行在Azure上的Active Directory,两种服务之间的大致的对应关系如下图:<img src="https://www.synacktiv.com/sites/default/files/inline-images/AzureADvsAD.png" alt="https://troopers.de/downloads/troopers19/TROOPERS19_AD_Im_in_your_cloud.pdf"></p><p>​        将本地AD域与Azure AD集成的方法主要有三种：PHS、PTA、ADFS。其中PHS（密码哈希同步）和PTA（传递身份认证）都存在相关的潜在攻击路径。</p><h2 id="0x01-Azure-AD-Connect"><a href="#0x01-Azure-AD-Connect" class="headerlink" title="0x01 Azure AD Connect"></a>0x01 Azure AD Connect</h2><h3 id="PHS"><a href="#PHS" class="headerlink" title="PHS"></a>PHS</h3><p>​        PHS是用于实现混合标识登陆的一种方法。通过Azure AD Connect 可将本地AD用户的密码哈希同步到Azure AD上，这种方式的好处是减少密码管理的工作量，用户可以在Azure AD服务和本地AD中使用相同的密码。</p><p><img src="https://docs.microsoft.com/en-us/azure/active-directory/hybrid/media/how-to-connect-password-hash-synchronization/arch1.png" alt="什么是 Azure AD Connect"></p><p>​        Azure AD为同步到云上的密码提供了泄露检测，即网络上出现大规模密码泄露事件时，与泄露数据匹配的账户将会被自动标记到高风险区域。</p><p>​        PHS同样可以作为ADFS联合身份验证的一种备用验证方式，所以对PHS进行的攻击同样可以威胁到使用ADFS进行身份验证的应用。</p><p>​    <img src="https://www.synacktiv.com/sites/default/files/inline-images/azuread_connect_0.png" alt="小灵通工作流程"></p><p>​        上图为PHS的工作原理，可以看出Azure AD connect将在本地和Azure各创建了一个账户用于同步密码哈希，本地账户通常名为MSOL_<code>test</code> ，Azure AD账户为Sync_sync1_test。</p><p>sync1是安装了ad connect的本地服务器主机名，而test是一个跟Azure tenant关联的id。</p><p>​        由于PHS需要操作密码哈希数据，所以<strong>这两个账户拥有各自环境的最高权限</strong>，在后续的部分中，我们会探讨一种通过ad connect账户攻击AD域的方法。</p><pre><code>    ### PTA </code></pre><p>​        对于一些无法将接受密码同步到AD域外所产生风险的用户，Azure AD还提供了另一种身份验证方式PTA(传递身份验证)，这种认证方式会将认证请求通过Azure AD Connect转发到AD。例如AD用户在登录到Web端Outlook时，输入的登陆凭据会被Azure加密后传递到本地Agent，本地Agent对其进行解密并将域控(DC)返回的验证结果传回Azure AD，流程如下图：</p><p><img src="https://docs.microsoft.com/en-us/azure/active-directory/hybrid/media/how-to-connect-pta/pta1.png" alt="Azure AD Pass-through Authentication"></p><p>​        </p><p>不难发现，作为凭据传递的中继Agent服务器，有着解密和查看凭据的权限，获得其控制权即可拦截身份验证请求并获得明文的登陆凭证。</p><h2 id="0x02-总结"><a href="#0x02-总结" class="headerlink" title="0x02 总结"></a>0x02 总结</h2><p>​        这部分主要介绍了Azure AD，以及Azure AD和Active Directory集成进行身份认证的几种方式和其潜在的安全风险，后面的文章我们会详细探讨一下每种风险的利用方式并通过实验环境进行演示，以及针对Azure AD进行信息收集的主要方向。</p><hr><p>参考链接：</p><p><a href="https://www.synacktiv.com/en/publications/azure-ad-introduction-for-red-teamers.html">https://www.synacktiv.com/en/publications/azure-ad-introduction-for-red-teamers.html</a></p><p><a href="https://docs.microsoft.com/zh-cn/azure/active-directory/hybrid/whatis-phs">https://docs.microsoft.com/zh-cn/azure/active-directory/hybrid/whatis-phs</a></p><p><a href="https://docs.microsoft.com/zh-cn/azure/active-directory/">https://docs.microsoft.com/zh-cn/azure/active-directory/</a></p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;h1 id=&quot;Azure-Active-Directory-Pentesting-Part-1&quot;&gt;&lt;a href=&quot;#Azure-Active-Directory-Pentesting-Part-1&quot; class=&quot;headerlink&quot; title=&quot;Azure Active</summary>
+      
     
     
     
